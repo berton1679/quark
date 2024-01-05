@@ -5,6 +5,7 @@ build
 source/QuarkLearning.cpp
 include/quark/QuarkLearning.h
 debug
+.git-credentials
 
 ### C++ ###
 # Prerequisites
