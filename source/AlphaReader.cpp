@@ -122,10 +122,10 @@ void AlphaReader::standardize_by_fold(size_t ifold) {
     fold_scales_[ifold][ii].mean_ = mean;
     fold_scales_[ifold][ii].val_ = std::sqrt(var);
 
-    spdlog::info("{}, (mean,val)=({}, {})", meta_.features_[ii], fold_scales_[ifold][ii].mean_, fold_scales_[ifold][ii].val_);
+    spdlog::info("{}, (mean,val)=({}, {})", meta_.features_[ii], fold_scales_[ifold][ii].mean_,
+                 fold_scales_[ifold][ii].val_);
   }
 }
-
 
 void AlphaReader::split_folds() {
   const auto nfolds = cfg_.nfold_;
@@ -162,12 +162,12 @@ const TsVecType AlphaReader::get_ts_vec_index(int64_t st, int64_t ed) const {
   return ts_vec_.block(st, 0, ed - st, 1);
 }
 
-Eigen::MatrixXd AlphaReader::standardization(const Eigen::MatrixXd &matrix, size_t ifold) const
-{
+Eigen::MatrixXd AlphaReader::standardization(const Eigen::MatrixXd &matrix, size_t ifold) const {
   Eigen::MatrixXd ret = matrix;
   for (std::ptrdiff_t icol = 0; icol < matrix.cols(); ++icol) {
     for (std::ptrdiff_t irow = 0; irow < matrix.rows(); ++irow) {
-      ret(irow, icol) = (matrix(irow, icol) - fold_scales_[ifold][icol].mean_) / fold_scales_[ifold][icol].val_;
+      ret(irow, icol)
+          = (matrix(irow, icol) - fold_scales_[ifold][icol].mean_) / fold_scales_[ifold][icol].val_;
     }
   }
   return ret;

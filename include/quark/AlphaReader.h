@@ -81,7 +81,7 @@ namespace quark {
     const Scale& get_scale(size_t ii) const { return scales_[ii]; }
     const Scale& get_fold_scale(size_t ifold, size_t ii) const { return fold_scales_[ifold][ii]; }
 
-    Eigen::MatrixXd standardization(const Eigen::MatrixXd &matrix, size_t ifold) const;
+    Eigen::MatrixXd standardization(const Eigen::MatrixXd& matrix, size_t ifold) const;
 
   public:
     const std::filesystem::path alpha_folder_;

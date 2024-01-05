@@ -117,8 +117,7 @@ LearningModel QuarkStrategy::optimize() {
     learning_model.thf1_ = best_ceofs[meta.features_.size() + 1];
     learning_model.thf2_ = best_ceofs[meta.features_.size() + 2];
     learning_model.best_beta2_ = qks_cfg.beta2_[best_model_index];
-  }
-  else {
+  } else {
     learning_model.thf1_ = qks_cfg.thf_;
   }
   return learning_model;
@@ -321,8 +320,10 @@ void QuarkStrategy::write_model(const LearningModel &report) {
       report_v.AddMember("yreturn", yreturn_v, allocator);
 
       rapidjson::Value srt_v;
-      srt_v.SetDouble(report.final_report_.srt_);
-      report_v.AddMember("srT", srt_v, allocator);
+      if (!std::isnan(report.final_report_.srt_)) {
+        srt_v.SetDouble(report.final_report_.srt_);
+        report_v.AddMember("srT", srt_v, allocator);
+      }
 
       rapidjson::Value l1_v;
       l1_v.SetInt64(cfg_.quark_s_cfg_.l1_penalty_);
