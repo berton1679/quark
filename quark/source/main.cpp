@@ -1,7 +1,6 @@
 #include <quark/AlphaReader.h>
 #include <quark/Config.h>
 #include <quark/QuarkStrategy.h>
-#include <quark/greeter.h>
 
 #include <cxxopts.hpp>
 #include <iostream>
@@ -9,13 +8,6 @@
 #include <unordered_map>
 
 auto main(int argc, char** argv) -> int {
-  const std::unordered_map<std::string, greeter::LanguageCode> languages{
-      {"en", greeter::LanguageCode::EN},
-      {"de", greeter::LanguageCode::DE},
-      {"es", greeter::LanguageCode::ES},
-      {"fr", greeter::LanguageCode::FR},
-  };
-
   cxxopts::Options options(*argv, "A program to welcome the world!");
 
   std::string language;
