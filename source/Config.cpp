@@ -67,4 +67,15 @@ void Config::parse() {
   if (qks_json.HasMember("DelayTest")) {
     quark_s_cfg.delay_test_index_ = qks_json["DelayTest"].GetUint64();
   }
+
+  if (doc.HasMember("explorer")) {
+    ExplorerCfg &explr_cfg = const_cast<ExplorerCfg &>(explorer_cfg_);
+    const rapidjson::Value &explr_json = doc["explorer"];
+    for (const rapidjson::Value &ntrx : explr_json["ntrxs"].GetArray()) {
+      explr_cfg.ntrxs_.push_back(ntrx.GetDouble());
+    }
+    if (explr_json.HasMember("flip_sign")) {
+      explr_cfg.flip_sign_ = explr_json["flip_sign"].GetBool();
+    }
+  }
 }
