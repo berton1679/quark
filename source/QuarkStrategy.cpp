@@ -386,7 +386,7 @@ void QuarkStrategy::write_model(const LearningModel &report) {
   {
     rapidjson::Value test_size_v;
     test_size_v.SetInt64(cfg_.test_size_);
-    doc.AddMember("train_size", test_size_v, allocator);
+    doc.AddMember("test_size", test_size_v, allocator);
   }
 
   // write deconfig
