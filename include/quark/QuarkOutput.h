@@ -10,6 +10,7 @@ namespace quark {
     double ntrx_{0};
     double yreturn_{0};
     double srt_{0};
+    Eigen::VectorXd pnls_;
   };
   struct LearningModel {
     std::vector<double> coefs_;
@@ -18,6 +19,18 @@ namespace quark {
     double thf2_{0.};
     LearningReport final_report_;
     double best_beta2_{0.};
+  };
+
+  struct ExplorerModel {
+    // dim = nfeatures
+    std::vector<LearningReport> oos_reports_;
+    std::vector<double> thfs_;
+    std::vector<int> signs_;
+    double ntrx_;
+  };
+
+  struct ExplorerReport {
+    std::vector<ExplorerModel> models_;
   };
 
   double get_srt(const Eigen::VectorXd &pnls);

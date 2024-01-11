@@ -409,3 +409,78 @@ void QuarkStrategy::write_model(const LearningModel &report) {
   std::filesystem::copy(alpha_cfg_yaml, alpha_cfg_output,
                         std::filesystem::copy_options::overwrite_existing);
 }
+
+void QuarkStrategy::run_mpt(const ExplorerReport &report) {
+  const auto &explr_cfg = cfg_.explorer_cfg_;
+  const auto &ntrxs = explr_cfg.ntrxs_;
+  for (size_t intrx = 0; intrx < ntrxs.size(); ++intrx) {
+    run_mpt_ntrx(report, intrx);
+  }
+}
+
+void QuarkStrategy::run_mpt_ntrx(const ExplorerReport &report, size_t intrx) {
+  const auto &mpt_cfg = cfg_.mpt_cfg_;
+  const auto &explr_cfg = cfg_.explorer_cfg_;
+  const double ntrx = explr_cfg.ntrxs_[intrx];
+  const auto &explr_model = report.models_[intrx];
+  const size_t nfeature = explr_model.oos_reports_.size();
+  const auto &oos_report = explr_model.oos_reports_;
+  const auto &meta = alpha_reader_.get_meta();
+  std::vector<Eigen::VectorXd> pnls;
+  std::vector<size_t> index_mapping;
+  const double diff_ntrx_thf = 3;
+  spdlog::info("=================NTRX={}=================", ntrx);
+  for (size_t ifeature = 0; ifeature < nfeature; ++ifeature) {
+    const double cur_ntrx = oos_report[ifeature].ntrx_;
+    if (std::abs(cur_ntrx - ntrx) > diff_ntrx_thf) {
+      spdlog::warn("skip {}, {} != {}", meta.features_[ifeature], cur_ntrx, ntrx);
+      continue;
+    }
+    const double cur_srt = oos_report[ifeature].srt_;
+    const double cur_yreturn = oos_report[ifeature].yreturn_;
+    if (cur_srt < mpt_cfg.srt_thf_) {
+      spdlog::warn("skip {} srT, {} < {}", meta.features_[ifeature], cur_srt, mpt_cfg.srt_thf_);
+      continue;
+    }
+    if (cur_yreturn < mpt_cfg.yreturn_thf_) {
+      spdlog::warn("skip {} yreturn, {} < {}", meta.features_[ifeature], cur_yreturn,
+                   mpt_cfg.yreturn_thf_);
+      continue;
+    }
+
+    pnls.push_back(oos_report[ifeature].pnls_);
+    index_mapping.push_back(ifeature);
+  }
+
+  std::vector<double> rescale_coef;
+  rescale_coef.resize(nfeature);
+  if (!pnls.empty()) {
+    QuarkPortfolio qp{pnls, mpt_cfg.risk_a_};
+    const auto &de_cfg = cfg_.de_cfg_;
+    DifferentialEvo<QuarkPortfolio> de{&qp, de_cfg.pop_size_};
+    de.optimize(de_cfg.max_iters_, false);
+    const auto &coefs = de.get_best_agent();
+    double mean = qp.get_mean(coefs);
+    double var = qp.get_variance(coefs);
+    double srT = mean / std::sqrt(var) * std::sqrt(365);
+    double yreturn = mean * 365;
+    double coef_sum = std::accumulate(coefs.begin(), coefs.end(), 0.);
+    if (coef_sum > 0.) {
+      for (size_t icoef = 0; icoef < coefs.size(); ++icoef) {
+        size_t index = index_mapping[icoef];
+        rescale_coef[index] = coefs[icoef] / coef_sum;
+      }
+    }
+    spdlog::info("MPT done, srT={}, yreturn={}", srT, yreturn);
+  }
+  std::stringstream ss;
+  ss << "(";
+  for (size_t icoef = 0; icoef < rescale_coef.size(); ++icoef) {
+    ss << rescale_coef[icoef];
+    if (icoef != rescale_coef.size() - 1) {
+      ss << ",";
+    }
+  }
+  ss << ")";
+  spdlog::info("coefs={}", ss.str());
+}

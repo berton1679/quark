@@ -12,8 +12,11 @@ namespace quark {
     LearningFoldReport get_train_report(size_t ifold, const std::vector<double> &coefs);
     void write_model(const LearningModel &report);
 
+    void run_mpt(const ExplorerReport &report);
+
   private:
     std::vector<double> optimize_fold(size_t ifold, double ntrx, double beta2sum);
+    void run_mpt_ntrx(const ExplorerReport &report, size_t intrx);
 
   private:
     const AlphaReader &alpha_reader_;

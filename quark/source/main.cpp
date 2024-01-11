@@ -1,5 +1,6 @@
 #include <quark/AlphaReader.h>
 #include <quark/Config.h>
+#include <quark/QuarkExplorer.h>
 #include <quark/QuarkStrategy.h>
 
 #include <cxxopts.hpp>
@@ -45,10 +46,21 @@ auto main(int argc, char** argv) -> int {
   quark::AlphaReader alpha_reader{alpha_folder, cfg};
   alpha_reader.read();
 
-  quark::QuarkStrategy quark_strategy{alpha_reader, cfg};
-  // quark_strategy.optimize_all();
-  const auto lmr = quark_strategy.optimize();
-  quark_strategy.write_model(lmr);
+  if (cfg.run_explr_ && !cfg.run_mpt_) {
+    quark::QuarkExplorer explorer{alpha_reader, cfg};
+    const auto explr_report = explorer.optimize();
+  } else if (cfg.run_mpt_) {
+    // feature filter/sign, based on yreturn
+    quark::QuarkExplorer explorer{alpha_reader, cfg};
+    const auto explr_report = explorer.optimize();
+    quark::QuarkStrategy quark_strategy{alpha_reader, cfg};
+    quark_strategy.run_mpt(explr_report);
+  } else {
+    quark::QuarkStrategy quark_strategy{alpha_reader, cfg};
+    // quark_strategy.optimize_all();
+    const auto lmr = quark_strategy.optimize();
+    quark_strategy.write_model(lmr);
+  }
 
   return 0;
 }

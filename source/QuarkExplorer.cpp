@@ -20,7 +20,8 @@ ExplorerReport QuarkExplorer::optimize() {
   }
 
   for (std::ptrdiff_t ifeature = 0; ifeature < meta.features_.size(); ++ifeature) {
-    spdlog::info("====================ifeature: {},{}====================", ifeature, meta.features_[ifeature]);
+    spdlog::info("====================ifeature: {},{}====================", ifeature,
+                 meta.features_[ifeature]);
     for (size_t intrx = 0; intrx < explr_cfg.ntrxs_.size(); ++intrx) {
       const double ntrx = explr_cfg.ntrxs_[intrx];
       double final_thf = 0.;
@@ -56,6 +57,7 @@ ExplorerReport QuarkExplorer::optimize() {
         oos_report.ntrx_ = sum_ntrx / total_days;
         oos_report.yreturn_ = all_pnls.mean() * 365;
         oos_report.srt_ = get_srt(all_pnls);
+        oos_report.pnls_ = all_pnls;
 
         if (oos_report.yreturn_ > ntrx_oos_report.yreturn_) {
           ntrx_oos_report = oos_report;
