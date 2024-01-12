@@ -221,11 +221,19 @@ std::vector<double> QuarkStrategy::optimize_fold(size_t ifold, double ntrx, doub
   return coefs;
 }
 
-void QuarkStrategy::write_model(const LearningModel &report) {
+std::string QuarkStrategy::get_output_folder(bool create_or_not) const {
   using path = std::filesystem::path;
   const std::string output_folder
       = path(cfg_.output_folder_) / path(cfg_.symbol_) / path(cfg_.model_date_str_);
-  std::filesystem::create_directories(output_folder);
+  if (create_or_not) {
+    std::filesystem::create_directories(output_folder);
+  }
+  return output_folder;
+}
+
+void QuarkStrategy::write_model(const LearningModel &report) {
+  using path = std::filesystem::path;
+  const std::string output_folder = get_output_folder(true);
   const Meta &meta = alpha_reader_.get_meta();
   const std::string model_file_name = "model_" + cfg_.model_date_str_ + ".json";
   const std::string model_json_path = path(output_folder) / path(model_file_name);
@@ -402,6 +410,12 @@ void QuarkStrategy::write_model(const LearningModel &report) {
   doc.Accept(writer);
 
   // copy alpha_cfg_{date}.yaml file
+  copy_alpha_yaml();
+}
+
+void QuarkStrategy::copy_alpha_yaml() const {
+  using path = std::filesystem::path;
+  const auto output_folder = get_output_folder();
   const std::string alpha_cfg_name = "alpha_cfg_" + cfg_.model_date_str_ + ".yaml";
   const std::string alpha_cfg_yaml = alpha_reader_.alpha_folder_ / path(alpha_cfg_name);
   const std::string alpha_cfg_output = path(output_folder) / path(alpha_cfg_name);
@@ -447,6 +461,11 @@ void QuarkStrategy::run_mpt_ntrx(const ExplorerReport &report, size_t intrx) {
                    mpt_cfg.yreturn_thf_);
       continue;
     }
+    const double cost_return = mpt_cfg.ntrx_cost_ * cur_ntrx * 365;
+    if (cur_yreturn < cost_return) {
+      spdlog::warn("skip {} yreturn, {} < {}", meta.features_[ifeature], cur_yreturn, cost_return);
+      continue;
+    }
 
     pnls.push_back(oos_report[ifeature].pnls_);
     index_mapping.push_back(ifeature);
@@ -454,6 +473,7 @@ void QuarkStrategy::run_mpt_ntrx(const ExplorerReport &report, size_t intrx) {
 
   std::vector<double> rescale_coef;
   rescale_coef.resize(nfeature);
+  LearningReport final_report;
   if (!pnls.empty()) {
     QuarkPortfolio qp{pnls, mpt_cfg.risk_a_};
     const auto &de_cfg = cfg_.de_cfg_;
@@ -472,6 +492,10 @@ void QuarkStrategy::run_mpt_ntrx(const ExplorerReport &report, size_t intrx) {
       }
     }
     spdlog::info("MPT done, srT={}, yreturn={}", srT, yreturn);
+
+    final_report.ntrx_ = ntrx;
+    final_report.srt_ = srT;
+    final_report.yreturn_ = yreturn;
   }
   std::stringstream ss;
   ss << "(";
@@ -483,4 +507,233 @@ void QuarkStrategy::run_mpt_ntrx(const ExplorerReport &report, size_t intrx) {
   }
   ss << ")";
   spdlog::info("coefs={}", ss.str());
+
+  if (cfg_.output_folder_.empty()) {
+    return;
+  }
+
+  // write model
+  write_mpt_model(report, intrx, rescale_coef, final_report);
+}
+
+void QuarkStrategy::write_mpt_model(const ExplorerReport &report, size_t intrx,
+                                    const std::vector<double> &coefs,
+                                    const LearningReport &learning_report) {
+  const auto &mpt_cfg = cfg_.mpt_cfg_;
+  const auto &explr_cfg = cfg_.explorer_cfg_;
+  const double ntrx = explr_cfg.ntrxs_[intrx];
+  const auto &explr_model = report.models_[intrx];
+  const size_t nfeature = explr_model.oos_reports_.size();
+  const auto &oos_report = explr_model.oos_reports_;
+  const auto &meta = alpha_reader_.get_meta();
+  const std::string output_folder = get_output_folder(true);
+
+  using path = std::filesystem::path;
+  const std::string model_file_name = "model_" + cfg_.model_date_str_ + ".json";
+  const std::string model_json_path = path(output_folder) / path(model_file_name);
+  spdlog::info("Write model file, {}", model_json_path);
+  rapidjson::Document doc;
+  doc.SetObject();
+  std::ofstream ofs{model_json_path};
+  rapidjson::OStreamWrapper osw{ofs};
+
+  auto &allocator = doc.GetAllocator();
+
+  // write features
+  {
+    rapidjson::Value features{rapidjson::kArrayType};
+    for (size_t ii = 0; ii < meta.features_.size(); ++ii) {
+      rapidjson::Value feature;
+      feature.SetString(meta.features_[ii].c_str(), allocator);
+      features.PushBack(feature, allocator);
+    }
+
+    doc.AddMember("features", features, allocator);
+  }
+
+  // write scale
+  {
+    rapidjson::Value scalers{rapidjson::kArrayType};
+    for (size_t ii = 0; ii < meta.features_.size(); ++ii) {
+      rapidjson::Value scaler;
+      scaler.SetObject();
+      const auto &cur_scaler = alpha_reader_.get_scale(ii);
+      // const auto &cur_scaler = alpha_reader_.get_fold_scale(cfg_.nfold_, ii);
+      scaler.AddMember("mean", cur_scaler.mean_, allocator);
+      scaler.AddMember("val", cur_scaler.val_, allocator);
+      scalers.PushBack(scaler, allocator);
+    }
+    doc.AddMember("scalers", scalers, allocator);
+  }
+  // write coefs
+  {
+    rapidjson::Value coefs_v{rapidjson::kArrayType};
+    for (size_t ii = 0; ii < coefs.size(); ++ii) {
+      rapidjson::Value coef_v;
+      coef_v.SetDouble(coefs[ii]);
+      coefs_v.PushBack(coef_v, allocator);
+    }
+
+    doc.AddMember("coefs", coefs_v, allocator);
+  }
+  // write model
+  {
+    rapidjson::Value models_v{rapidjson::kArrayType};
+
+    for (size_t ii = 0; ii < coefs.size(); ++ii) {
+      rapidjson::Value model_v{rapidjson::kObjectType};
+
+      rapidjson::Value sign_v;
+      sign_v.SetInt64(explr_model.signs_[ii]);
+      model_v.AddMember("sign", sign_v, allocator);
+
+      rapidjson::Value thf_v;
+      thf_v.SetDouble(explr_model.thfs_[ii]);
+      model_v.AddMember("thf", thf_v, allocator);
+
+      models_v.PushBack(model_v, allocator);
+    }
+
+    doc.AddMember("models", models_v, allocator);
+  }
+  // write report
+  {
+    rapidjson::Value report_v{rapidjson::kObjectType};
+    {
+      rapidjson::Value ntrx_test;
+      ntrx_test.SetDouble(learning_report.ntrx_);
+      report_v.AddMember("ntrx", ntrx_test, allocator);
+
+      rapidjson::Value yreturn_v;
+      yreturn_v.SetDouble(learning_report.yreturn_);
+      report_v.AddMember("yreturn", yreturn_v, allocator);
+
+      rapidjson::Value srt_v;
+      if (!std::isnan(learning_report.srt_)) {
+        srt_v.SetDouble(learning_report.srt_);
+        report_v.AddMember("srT", srt_v, allocator);
+      }
+    }
+
+    doc.AddMember("report", report_v, allocator);
+  }
+
+  // write ndays
+  {
+    rapidjson::Value ndays_v;
+    ndays_v.SetInt64(meta.ndays_);
+    doc.AddMember("ndays", ndays_v, allocator);
+  }
+
+  // write nrows
+  {
+    rapidjson::Value nrows_v;
+    nrows_v.SetInt64(meta.nrows_);
+    doc.AddMember("nrows", nrows_v, allocator);
+  }
+
+  // write start_ts
+  {
+    rapidjson::Value start_ts_v;
+    start_ts_v.SetInt64(meta.start_ts_);
+    doc.AddMember("start_ts", start_ts_v, allocator);
+  }
+
+  // write model_date
+  {
+    rapidjson::Value model_date_str_v;
+    model_date_str_v.SetString(cfg_.model_date_str_.c_str(), allocator);
+    doc.AddMember("model_date", model_date_str_v, allocator);
+  }
+
+  // write symbol
+  {
+    rapidjson::Value symbol_v;
+    symbol_v.SetString(cfg_.symbol_.c_str(), allocator);
+    doc.AddMember("symbol", symbol_v, allocator);
+  }
+
+  // write nfold
+  {
+    rapidjson::Value nfold_v;
+    nfold_v.SetInt64(cfg_.nfold_);
+    doc.AddMember("nfold", nfold_v, allocator);
+  }
+
+  // write train_size
+  {
+    rapidjson::Value train_size_v;
+    train_size_v.SetInt64(cfg_.train_size_);
+    doc.AddMember("train_size", train_size_v, allocator);
+  }
+
+  // write test_size
+  {
+    rapidjson::Value test_size_v;
+    test_size_v.SetInt64(cfg_.test_size_);
+    doc.AddMember("test_size", test_size_v, allocator);
+  }
+
+  // write configs....
+  // write deconfig
+  {
+    rapidjson::Value decfg_v{rapidjson::kObjectType};
+
+    rapidjson::Value pop_size_v;
+    pop_size_v.SetInt64(cfg_.de_cfg_.pop_size_);
+    decfg_v.AddMember("pop_size", pop_size_v, allocator);
+
+    rapidjson::Value max_iters_v;
+    max_iters_v.SetInt64(cfg_.de_cfg_.max_iters_);
+    decfg_v.AddMember("max_iters", max_iters_v, allocator);
+
+    doc.AddMember("DeCfg", decfg_v, allocator);
+  }
+  // write explorer cfg
+  {
+    rapidjson::Value explrcfg_v{rapidjson::kObjectType};
+
+    rapidjson::Value flip_sign_v;
+    flip_sign_v.SetBool(explr_cfg.flip_sign_);
+    explrcfg_v.AddMember("flip_sign", flip_sign_v, allocator);
+
+    rapidjson::Value ntrxs_v{rapidjson::kArrayType};
+    for (size_t ii = 0; ii < explr_cfg.ntrxs_.size(); ++ii) {
+      rapidjson::Value ntrx_v;
+      ntrx_v.SetDouble(explr_cfg.ntrxs_[ii]);
+      ntrxs_v.PushBack(ntrx_v, allocator);
+    }
+    explrcfg_v.AddMember("ntrxs", ntrxs_v, allocator);
+
+    doc.AddMember("explorer", explrcfg_v, allocator);
+  }
+
+  // write mpt cfg
+  {
+    rapidjson::Value mptcfg_v{rapidjson::kObjectType};
+
+    rapidjson::Value risk_a_v;
+    risk_a_v.SetDouble(mpt_cfg.risk_a_);
+    mptcfg_v.AddMember("risk_a", risk_a_v, allocator);
+
+    rapidjson::Value srt_thf_v;
+    srt_thf_v.SetDouble(mpt_cfg.srt_thf_);
+    mptcfg_v.AddMember("srT_thf", srt_thf_v, allocator);
+
+    rapidjson::Value yreturn_thf_v;
+    yreturn_thf_v.SetDouble(mpt_cfg.yreturn_thf_);
+    mptcfg_v.AddMember("yreturn_thf", yreturn_thf_v, allocator);
+
+    rapidjson::Value ntrx_cost_v;
+    ntrx_cost_v.SetDouble(mpt_cfg.ntrx_cost_);
+    mptcfg_v.AddMember("ntrx_cost", ntrx_cost_v, allocator);
+
+    doc.AddMember("explorer", mptcfg_v, allocator);
+  }
+
+  rapidjson::Writer<rapidjson::OStreamWrapper> writer{osw};
+  doc.Accept(writer);
+
+  // copy alpha_cfg_{date}.yaml file
+  copy_alpha_yaml();
 }

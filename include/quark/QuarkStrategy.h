@@ -17,6 +17,10 @@ namespace quark {
   private:
     std::vector<double> optimize_fold(size_t ifold, double ntrx, double beta2sum);
     void run_mpt_ntrx(const ExplorerReport &report, size_t intrx);
+    void write_mpt_model(const ExplorerReport &report, size_t intrx,
+                         const std::vector<double> &coefs, const LearningReport &learning_report);
+    std::string get_output_folder(bool create_or_not = false) const;
+    void copy_alpha_yaml() const;
 
   private:
     const AlphaReader &alpha_reader_;

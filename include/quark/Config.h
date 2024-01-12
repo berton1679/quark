@@ -25,6 +25,7 @@ namespace quark {
     double risk_a_{0};
     double srt_thf_{0.};
     double yreturn_thf_{0.};
+    double ntrx_cost_{0};
   };
 
   class Config {

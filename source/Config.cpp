@@ -94,6 +94,12 @@ void Config::parse() {
     if (mpt_json.HasMember("yreturn_thf")) {
       mpt_cfg.yreturn_thf_ = mpt_json["yreturn_thf"].GetDouble();
     }
+    if (mpt_json.HasMember("ntrx_cost")) {
+      mpt_cfg.ntrx_cost_ = mpt_json["ntrx_cost"].GetDouble();
+      if (mpt_cfg_.yreturn_thf_ > 0 && mpt_cfg.ntrx_cost_ > 0) {
+        mpt_cfg.yreturn_thf_ = 0.;
+      }
+    }
   }
 
   const_cast<bool &>(run_mpt_) = doc.HasMember("explorer") && doc.HasMember("mpt");
