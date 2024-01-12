@@ -108,13 +108,13 @@ void AlphaReader::standardize_by_fold(size_t ifold) {
   spdlog::info("xdim=({},{})", cur_x_matrix.rows(), cur_x_matrix.cols());
   for (size_t ii = 0; ii < meta_.features_.size(); ++ii) {
     double mean = 0;
-    for (std::ptrdiff_t irow = 0; irow < x_matrix_.rows(); ++irow) {
+    for (std::ptrdiff_t irow = 0; irow < cur_x_matrix.rows(); ++irow) {
       mean += cur_x_matrix(irow, ii);
     }
     mean /= cur_x_matrix.rows();
 
     double sum2 = 0;
-    for (std::ptrdiff_t irow = 0; irow < x_matrix_.rows(); ++irow) {
+    for (std::ptrdiff_t irow = 0; irow < cur_x_matrix.rows(); ++irow) {
       sum2 += (cur_x_matrix(irow, ii) - mean) * (cur_x_matrix(irow, ii) - mean);
     }
     double var = sum2 / (cur_x_matrix.rows() - 1);
@@ -131,7 +131,7 @@ void AlphaReader::split_folds() {
   const auto nfolds = cfg_.nfold_;
   const auto train_size = cfg_.train_size_;
   const auto test_size = cfg_.test_size_;
-  const auto delay_index = cfg_.quark_s_cfg_.delay_test_index_;
+  const auto delay_index = cfg_.delay_test_index_;
 
   size_t test_start_index = train_size;
   // for (size_t ii = 0; ii < nfolds + 1; ++ii) {

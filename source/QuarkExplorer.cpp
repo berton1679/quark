@@ -28,7 +28,8 @@ ExplorerReport QuarkExplorer::optimize() {
       LearningReport ntrx_oos_report;
       ntrx_oos_report.yreturn_ = -10000000000000;
       bool ntrx_flip = false;
-      for (size_t iflip = 0; iflip < 2; ++iflip) {
+      size_t iflip_sz = explr_cfg.flip_sign_ ? 2 : 1;
+      for (size_t iflip = 0; iflip < iflip_sz; ++iflip) {
         bool flip = iflip == 1;
         std::vector<LearningFoldReport> reports;
         for (size_t ifold = 0; ifold < cfg_.nfold_; ++ifold) {

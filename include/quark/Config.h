@@ -13,7 +13,6 @@ namespace quark {
     double thf_{0};
     std::vector<double> beta2_;
     bool l1_penalty_{false};
-    size_t delay_test_index_{0};
   };
 
   struct ExplorerCfg {
@@ -42,6 +41,7 @@ namespace quark {
     const std::string model_date_str_;
     const std::string output_folder_;
     const int64_t nfold_{4};
+    const size_t delay_test_index_{0};
     const size_t train_size_{0};
     const size_t test_size_{0};
     const DeCfg de_cfg_;

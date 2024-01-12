@@ -45,6 +45,10 @@ void Config::parse() {
   const_cast<size_t &>(train_size_) = doc["train_size"].GetUint64();
   const_cast<size_t &>(test_size_) = doc["test_size"].GetUint64();
 
+  if (doc.HasMember("delay_test_index")) {
+    const_cast<size_t &>(delay_test_index_) = doc["delay_test_index"].GetUint64();
+  }
+
   if (doc.HasMember("de")) {
     DeCfg &de_cfg = const_cast<DeCfg &>(de_cfg_);
     const auto de_json = doc["de"].GetObject();
@@ -64,9 +68,6 @@ void Config::parse() {
     }
     if (qks_json.HasMember("L1Penalty") && qks_json["L1Penalty"].GetBool()) {
       quark_s_cfg.l1_penalty_ = true;
-    }
-    if (qks_json.HasMember("DelayTest")) {
-      quark_s_cfg.delay_test_index_ = qks_json["DelayTest"].GetUint64();
     }
   }
 
