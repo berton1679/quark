@@ -1,24 +1,8 @@
 #pragma once
 #include "quark/AlphaReader.h"
+#include "quark/QuarkOutput.h"
 
 namespace quark {
-  struct LearningFoldReport {
-    double ntrx_{0};
-    Eigen::VectorXd pnls_;
-  };
-  struct LearningReport {
-    double ntrx_{0};
-    double yreturn_{0};
-    double srt_{0};
-  };
-  struct LearningModel {
-    std::vector<double> coefs_;
-    double holding_sec_{0};
-    double thf1_{0.};
-    double thf2_{0.};
-    LearningReport final_report_;
-    double best_beta2_{0.};
-  };
   class QuarkStrategy {
   public:
     QuarkStrategy(const AlphaReader &reader, const Config &cfg);
@@ -28,9 +12,15 @@ namespace quark {
     LearningFoldReport get_train_report(size_t ifold, const std::vector<double> &coefs);
     void write_model(const LearningModel &report);
 
+    void run_mpt(const ExplorerReport &report);
+
   private:
     std::vector<double> optimize_fold(size_t ifold, double ntrx, double beta2sum);
-    double get_srt(const Eigen::VectorXd &pnls);
+    void run_mpt_ntrx(const ExplorerReport &report, size_t intrx);
+    void write_mpt_model(const ExplorerReport &report, size_t intrx,
+                         const std::vector<double> &coefs, const LearningReport &learning_report);
+    std::string get_output_folder(bool create_or_not = false) const;
+    void copy_alpha_yaml() const;
 
   private:
     const AlphaReader &alpha_reader_;

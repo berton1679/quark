@@ -147,6 +147,10 @@ namespace quark {
           }
           std::cout << std::endl;
         }
+        const auto &best_coefs = get_best_agent();
+        if (cost_t_->finished(best_coefs)) {
+          break;
+        }
       }
 
       if (verbose) {

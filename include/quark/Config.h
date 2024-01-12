@@ -16,6 +16,18 @@ namespace quark {
     size_t delay_test_index_{0};
   };
 
+  struct ExplorerCfg {
+    std::vector<double> ntrxs_;
+    bool flip_sign_{true};
+  };
+
+  struct MPTCfg {
+    double risk_a_{0};
+    double srt_thf_{0.};
+    double yreturn_thf_{0.};
+    double ntrx_cost_{0};
+  };
+
   class Config {
   public:
     Config(const std::string &cfg_file, const std::string &symbol, const std::string &mode_date,
@@ -34,5 +46,9 @@ namespace quark {
     const size_t test_size_{0};
     const DeCfg de_cfg_;
     const QuarkSCfg quark_s_cfg_;
+    const ExplorerCfg explorer_cfg_;
+    const MPTCfg mpt_cfg_;
+    const bool run_mpt_{false};
+    const bool run_explr_{false};
   };
 }  // namespace quark
