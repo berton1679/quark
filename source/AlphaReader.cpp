@@ -18,13 +18,16 @@ void AlphaReader::read() {
   read_meta();
   read_alphas();
   // each fold owns different scales
-  standardization();
+  if (!cfg_.apply_fold_scale_)
+    standardization();
   split_folds();
 
-  // fold_scales_.resize(cfg_.nfold_ + 1);
-  // for (size_t ifold = 0; ifold < fold_scales_.size(); ++ifold) {
-  //   standardize_by_fold(ifold);
-  // }
+  if (cfg_.apply_fold_scale_) {
+    fold_scales_.resize(cfg_.nfold_ + 1);
+    for (size_t ifold = 0; ifold < fold_scales_.size(); ++ifold) {
+      standardize_by_fold(ifold);
+    }
+  }
 }
 
 void AlphaReader::read_meta() {

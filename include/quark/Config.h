@@ -48,6 +48,7 @@ namespace quark {
     const QuarkSCfg quark_s_cfg_;
     const ExplorerCfg explorer_cfg_;
     const MPTCfg mpt_cfg_;
+    const bool apply_fold_scale_{false};
     const bool run_mpt_{false};
     const bool run_explr_{false};
   };

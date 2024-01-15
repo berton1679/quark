@@ -42,16 +42,22 @@ namespace quark {
     }
 
     const Eigen::MatrixXd get_x_matrix_train(size_t index) const {
-      return get_raw_x_matrix_train(index);
-      // const Eigen::MatrixXd raw_x_m = get_raw_x_matrix_train(index);
-      // return standardization(raw_x_m, index);
+      if (!cfg_.apply_fold_scale_) {
+        return get_raw_x_matrix_train(index);
+      } else {
+        const Eigen::MatrixXd raw_x_m = get_raw_x_matrix_train(index);
+        return standardization(raw_x_m, index);
+      }
     }
     const Eigen::MatrixXd get_x_matrix_test(size_t index) const {
       const int64_t st = test_indices_[index].first;
       const int64_t ed = test_indices_[index].second;
-      return get_x_matrix_index(st, ed);
-      // const Eigen::MatrixXd raw_x_m = get_x_matrix_index(st, ed);
-      // return standardization(raw_x_m, index);
+      if (!cfg_.apply_fold_scale_) {
+        return get_x_matrix_index(st, ed);
+      } else {
+        const Eigen::MatrixXd raw_x_m = get_x_matrix_index(st, ed);
+        return standardization(raw_x_m, index);
+      }
     }
     const Eigen::MatrixXd get_x_matrix_index(int64_t st, int64_t ed) const;
 

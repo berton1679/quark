@@ -98,7 +98,9 @@ double QuarkExplorer::optimize_fold(size_t ifold, const double ntrx, const std::
   if (false) {
     const auto &p_trx = ql.get_position(coefs);
     double cur_ntrx = ql.get_num_trx(p_trx.second);
-    spdlog::info("ifold:{},cur_ntrx:{},ntrx:{}", ifold, cur_ntrx, ntrx);
+    const auto pnls = ql.get_pnl_day(p_trx.first);
+    spdlog::info("ifold:{},cur_ntrx:{},ntrx:{},yreturn:{}", ifold, cur_ntrx, ntrx,
+                 pnls.mean() * 365);
   }
   return coefs.front();
 }

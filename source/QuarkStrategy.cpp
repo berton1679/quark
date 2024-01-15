@@ -557,8 +557,9 @@ void QuarkStrategy::write_mpt_model(const ExplorerReport &report, size_t intrx,
     for (size_t ii = 0; ii < meta.features_.size(); ++ii) {
       rapidjson::Value scaler;
       scaler.SetObject();
-      const auto &cur_scaler = alpha_reader_.get_scale(ii);
-      // const auto &cur_scaler = alpha_reader_.get_fold_scale(cfg_.nfold_, ii);
+      const auto &cur_scaler = cfg_.apply_fold_scale_
+                                   ? alpha_reader_.get_fold_scale(cfg_.nfold_, ii)
+                                   : alpha_reader_.get_scale(ii);
       scaler.AddMember("mean", cur_scaler.mean_, allocator);
       scaler.AddMember("val", cur_scaler.val_, allocator);
       scalers.PushBack(scaler, allocator);

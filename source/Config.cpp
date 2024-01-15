@@ -103,5 +103,9 @@ void Config::parse() {
     }
   }
 
+  if (doc.HasMember("apply_fold_scale")) {
+    const_cast<bool &>(apply_fold_scale_) = doc["apply_fold_scale"].GetBool();
+  }
+
   const_cast<bool &>(run_mpt_) = doc.HasMember("explorer") && doc.HasMember("mpt");
 }
