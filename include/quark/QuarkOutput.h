@@ -25,6 +25,7 @@ namespace quark {
     // dim = nfeatures
     std::vector<LearningReport> oos_reports_;
     std::vector<double> thfs_;
+    std::vector<double> force_thfs_;
     std::vector<int> signs_;
     double ntrx_;
   };

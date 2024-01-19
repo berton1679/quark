@@ -7,11 +7,11 @@ namespace quark {
   public:
     QuarkExplorer(const AlphaReader &reader, const Config &cfg);
     ExplorerReport optimize();
-    double optimize_fold(size_t ifold, const double ntrx, const std::ptrdiff_t ifeature,
-                         const bool flip_sign);
+    std::vector<double> optimize_fold(size_t ifold, const double ntrx,
+                                      const std::ptrdiff_t ifeature, const bool flip_sign);
     LearningFoldReport get_test_report(size_t ifold, const double ntrx,
-                                       const std::ptrdiff_t ifeature, const double thf,
-                                       const bool flip);
+                                       const std::ptrdiff_t ifeature,
+                                       const std::vector<double> &thfs, const bool flip);
 
   private:
     const AlphaReader &reader_;

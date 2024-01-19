@@ -592,6 +592,10 @@ void QuarkStrategy::write_mpt_model(const ExplorerReport &report, size_t intrx,
       thf_v.SetDouble(explr_model.thfs_[ii]);
       model_v.AddMember("thf", thf_v, allocator);
 
+      rapidjson::Value force_thf_v;
+      force_thf_v.SetDouble(explr_model.force_thfs_[ii]);
+      model_v.AddMember("force_thf", force_thf_v, allocator);
+
       models_v.PushBack(model_v, allocator);
     }
 

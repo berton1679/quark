@@ -81,6 +81,9 @@ void Config::parse() {
       explr_cfg.flip_sign_ = explr_json["flip_sign"].GetBool();
     }
     const_cast<bool &>(run_explr_) = true;
+    if (explr_json.HasMember("use_force")) {
+      explr_cfg.use_force_ = explr_json["use_force"].GetBool();
+    }
   }
 
   if (doc.HasMember("mpt")) {

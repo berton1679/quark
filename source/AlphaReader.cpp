@@ -18,8 +18,7 @@ void AlphaReader::read() {
   read_meta();
   read_alphas();
   // each fold owns different scales
-  if (!cfg_.apply_fold_scale_)
-    standardization();
+  if (!cfg_.apply_fold_scale_) standardization();
   split_folds();
 
   if (cfg_.apply_fold_scale_) {

@@ -33,8 +33,8 @@ ExplorerReport QuarkExplorer::optimize() {
         bool flip = iflip == 1;
         std::vector<LearningFoldReport> reports;
         for (size_t ifold = 0; ifold < cfg_.nfold_; ++ifold) {
-          double thf = optimize_fold(ifold, ntrx, ifeature, flip);
-          const auto test_report = get_test_report(ifold, ntrx, ifeature, thf, flip);
+          const auto thfs = optimize_fold(ifold, ntrx, ifeature, flip);
+          const auto test_report = get_test_report(ifold, ntrx, ifeature, thfs, flip);
           reports.push_back(test_report);
         }
 
@@ -67,59 +67,82 @@ ExplorerReport QuarkExplorer::optimize() {
       }
 
       auto &cur_model = exp_report.models_[intrx];
-      double ntrx_thf = optimize_fold(cfg_.nfold_, ntrx, ifeature, ntrx_flip);
+      const auto ntrx_thfs = optimize_fold(cfg_.nfold_, ntrx, ifeature, ntrx_flip);
       cur_model.oos_reports_.push_back(ntrx_oos_report);
       if (ntrx_flip)
         cur_model.signs_.push_back(-1);
       else
         cur_model.signs_.push_back(1);
-      cur_model.thfs_.push_back(ntrx_thf);
+      cur_model.thfs_.push_back(ntrx_thfs[0]);
+      if (ntrx_thfs.size() > 1) {
+        cur_model.force_thfs_.push_back(ntrx_thfs[1]);
+      } else {
+        cur_model.force_thfs_.push_back(1000000);
+      }
 
-      spdlog::info("ntrx:{}, srT:{}, yreturn:{}, test_ntrx:{}, flip:{}, thf:{}",
+      spdlog::info("ntrx:{}, srT:{}, yreturn:{}, test_ntrx:{}, flip:{}, thf:{}, thf_c:{}",
                    explr_cfg.ntrxs_[intrx], ntrx_oos_report.srt_, ntrx_oos_report.yreturn_,
-                   ntrx_oos_report.ntrx_, ntrx_flip, ntrx_thf);
+                   ntrx_oos_report.ntrx_, ntrx_flip, ntrx_thfs[0], ntrx_thfs[1]);
     }
   }
 
   return exp_report;
 }
 
-double QuarkExplorer::optimize_fold(size_t ifold, const double ntrx, const std::ptrdiff_t ifeature,
-                                    const bool flip_sign) {
+std::vector<double> QuarkExplorer::optimize_fold(size_t ifold, const double ntrx,
+                                                 const std::ptrdiff_t ifeature,
+                                                 const bool flip_sign) {
   const auto &x_matrix = reader_.get_x_matrix_train(ifold);
   const auto &price_vec = reader_.get_price_vec_train(ifold);
   const auto &ts_vec = reader_.get_ts_vec_train(ifold);
 
-  QuarkExplorerLearning ql{ifeature, x_matrix, price_vec, ts_vec, ntrx, flip_sign};
+  const auto &explr_cfg = cfg_.explorer_cfg_;
   const auto &de_cfg = cfg_.de_cfg_;
-  DifferentialEvo<QuarkExplorerLearning> de{&ql, de_cfg.pop_size_};
-  de.optimize(de_cfg.max_iters_, false);
-  const auto &coefs = de.get_best_agent();
+  std::shared_ptr<QuarkBaseLearning> ql;
+  std::vector<double> coefs;
+  if (explr_cfg.use_force_) {
+    QuarkForcerLearning qlc{ifeature, x_matrix, price_vec, ts_vec, ntrx, flip_sign};
+    DifferentialEvo<QuarkForcerLearning> de{&qlc, de_cfg.pop_size_};
+    de.optimize(de_cfg.max_iters_, false);
+    coefs = de.get_best_agent();
+  } else {
+    QuarkExplorerLearning qlc{ifeature, x_matrix, price_vec, ts_vec, ntrx, flip_sign};
+    DifferentialEvo<QuarkExplorerLearning> de{&qlc, de_cfg.pop_size_};
+    de.optimize(de_cfg.max_iters_, false);
+    coefs = de.get_best_agent();
+  }
   if (false) {
-    const auto &p_trx = ql.get_position(coefs);
-    double cur_ntrx = ql.get_num_trx(p_trx.second);
-    const auto pnls = ql.get_pnl_day(p_trx.first);
+    const auto &p_trx = ql->get_position(coefs);
+    double cur_ntrx = ql->get_num_trx(p_trx.second);
+    const auto pnls = ql->get_pnl_day(p_trx.first);
     spdlog::info("ifold:{},cur_ntrx:{},ntrx:{},yreturn:{}", ifold, cur_ntrx, ntrx,
                  pnls.mean() * 365);
   }
-  return coefs.front();
+  return coefs;
 }
 
 LearningFoldReport QuarkExplorer::get_test_report(size_t ifold, const double ntrx,
-                                                  const std::ptrdiff_t ifeature, const double thf,
+                                                  const std::ptrdiff_t ifeature,
+                                                  const std::vector<double> &thfs,
                                                   const bool flip) {
   const auto &x_matrix = reader_.get_x_matrix_test(ifold);
   const auto &price_vec = reader_.get_price_vec_test(ifold);
   const auto &ts_vec = reader_.get_ts_vec_test(ifold);
 
-  QuarkExplorerLearning ql{ifeature, x_matrix, price_vec, ts_vec, ntrx, flip};
-  std::vector<double> coefs;
-  coefs.push_back(thf);
-  const auto &p_trx = ql.get_position(coefs);
-  const auto pnls = ql.get_pnl_day(p_trx.first);
+  const auto &explr_cfg = cfg_.explorer_cfg_;
+  std::shared_ptr<QuarkBaseLearning> ql;
+  if (explr_cfg.use_force_) {
+    ql = std::make_shared<QuarkForcerLearning>(ifeature, x_matrix, price_vec, ts_vec, ntrx, flip);
+  } else {
+    ql = std::make_shared<QuarkExplorerLearning>(ifeature, x_matrix, price_vec, ts_vec, ntrx, flip);
+  }
+
+  std::vector<double> coefs = thfs;
+  const auto &p_trx = ql->get_position(coefs);
+  const auto pnls = ql->get_pnl_day(p_trx.first);
 
   LearningFoldReport ret;
-  ret.ntrx_ = ql.get_num_trx(p_trx.second);
+  ret.ntrx_ = ql->get_num_trx(p_trx.second);
   ret.pnls_ = pnls;
   return ret;
 }

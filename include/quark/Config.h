@@ -18,6 +18,7 @@ namespace quark {
   struct ExplorerCfg {
     std::vector<double> ntrxs_;
     bool flip_sign_{true};
+    bool use_force_{false};
   };
 
   struct MPTCfg {
